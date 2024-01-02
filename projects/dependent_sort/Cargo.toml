@@ -1,0 +1,22 @@
+[package]
+name = "dependent_sort"
+version = "0.0.0"
+authors = ["Aster <192607617@qq.com>"]
+description = "A special topological sorting that can arrange the same group of objects together, used to manage dependencies"
+repository = "https://github.com/oovm/dependent_sort"
+documentation = "https://docs.rs/dependent_sort"
+readme = "readme.md"
+license = "MPL-2.0"
+edition = "2021"
+exclude = ["package.json", "tests/**"]
+
+[dependencies]
+fixedbitset = "0.4.2"
+
+[dev-dependencies]
+
+[features]
+default = []
+
+[package.metadata.docs.rs]
+all-features = true
