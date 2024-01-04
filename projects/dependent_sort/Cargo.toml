@@ -13,6 +13,7 @@ exclude = ["package.json", "tests/**"]
 [dependencies]
 itertools = "0.12.1"
 fixedbitset = "0.4.2"
+log = "0.4.20"
 
 [dev-dependencies]
 

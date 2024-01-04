@@ -28,12 +28,8 @@ impl<'i, T, G> Ord for Task<'i, T, G> where
     }
 }
 
-impl<'i, T, G> AddAssign<Task<'i, T, G>> for DependentSort<'i, T, G>
-    where
-        T: Eq + Ord + Hash,
-        G: Eq + Ord + Hash,
-{
+impl<'i, T, G> AddAssign<Task<'i, T, G>> for DependentSort<'i, T, G> where T: PartialEq, G: PartialEq {
     fn add_assign(&mut self, task: Task<'i, T, G>) {
-        self.tasks.push(task);
+        self.tasks.push(task)
     }
 }

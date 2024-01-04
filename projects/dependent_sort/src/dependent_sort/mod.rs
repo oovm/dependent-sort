@@ -1,26 +1,28 @@
 use std::cmp::Ordering;
-use std::collections::{ HashMap};
+use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
 use std::hash::Hash;
+use std::mem::take;
 use std::ops::AddAssign;
 use itertools::Itertools;
+use log::log;
+use crate::TopologicalError;
 
 mod arithmetic;
 
 #[derive(Default)]
 pub struct DependentSort<'i, T, G> {
+    /// non-virtualized tasks
     tasks: Vec<Task<'i, T, G>>,
+    // virtualized tasks
+    virtualized: Vec<VirtualTasks>,
+    // maps for recovering the original tasks
+    task_map: Vec<&'i T>,
+    /// maps for recovering the original groups
+    group_map: Vec<&'i G>,
+    virtual_group_id: isize,
     /// Should circular dependencies report an error immediately or declare them at the same time?
     allow_circular: bool,
-}
-
-/// Every task must belong to a group
-/// Ungrouped tasks are assigned a virtual number
-#[derive(Debug)]
-struct VirtualGroup<'i, T> {
-    id: usize,
-    dependent_groups: Vec<usize>,
-    contain_tasks: Vec<&'i T>,
 }
 
 #[derive(Debug)]
@@ -30,55 +32,82 @@ pub struct Task<'i, T, G> {
     pub dependent_tasks: Vec<&'i T>,
 }
 
+#[derive(Debug)]
+struct VirtualTasks {
+    task_id: usize,
+    // each task is assigned a group id
+    // The real tasks are 0, 1, 2, 3...
+    // dummy tasks are -1, -2, -3 ...
+    group_id: isize,
+    dependent_tasks: Vec<usize>,
+}
 
-impl<'i, T, G> DependentSort<'i, T, G> {
-    /// - First assign a group number to each grouped task
-    /// - Assign auto-increment ids to tasks without groups
-    fn virtual_groups(&self) -> Vec<VirtualGroup<'i, T>>
+impl<'i, T, G> DependentSort<'i, T, G> where
+    T: PartialEq,
+    G: PartialEq, {
+    pub fn finalize(&mut self) -> Result<(), TopologicalError> where
+        T: PartialEq,
+        G: PartialEq, {
+        let tasks = take(&mut self.tasks);
+        for task in tasks {
+            self.virtualize(task)?;
+        }
+        Ok(())
+    }
+    fn virtualize(&mut self, task: Task<'i, T, G>) -> Result<(), TopologicalError>
         where
-            T: Eq + Ord,
-            G: Eq + Ord + Hash,
+            T: PartialEq,
+            G: PartialEq,
     {
-        let reals = self.tasks.iter().filter(|task| task.group.is_some()).dedup().count();
-        let mut groups = Vec::with_capacity(self.tasks.len() - reals);
-        let mut real_id = 0;
-        let mut virtual_id = reals + 1;
-        let mut group_map = HashMap::new();
-        for task in self.tasks.iter() {
-            match task.group {
-                Some(group) => {
-                    match group_map.entry(group) {
-                        Entry::Occupied( entry) => {
-                            let id = *entry.get();
-                            let group: &mut VirtualGroup<T> = groups.get_mut(id).unwrap();
-                            group.contain_tasks.push(task.id);
-                        }
-                        Entry::Vacant(entry) => {
-                            let group = VirtualGroup { id: real_id, dependent_groups: vec![], contain_tasks: vec![task.id] };
-                            groups.push(group);
-                            entry.insert(real_id);
-                            real_id += 1;
-                        }
-                    }
-                }
-                None => { continue; }
+        let dependent_tasks = self.virtualize_dependent_tasks(&task.dependent_tasks)?;
+        match task.group {
+            Some(reals) => {
+                let group_id = self.virtualize_group(reals)? as isize;
+                self.virtualized.push(VirtualTasks {
+                    task_id: self.virtualized.len(),
+                    group_id,
+                    dependent_tasks,
+                });
+            }
+            None => {
+                self.virtual_group_id -= 1;
+                self.virtualized.push(VirtualTasks {
+                    task_id: self.virtualized.len(),
+                    group_id: self.virtual_group_id,
+                    dependent_tasks,
+                });
             }
         }
-        for task in self.tasks.iter().filter(|task| task.group.is_none()) {
-            let group = VirtualGroup { id: virtual_id, dependent_groups: vec![], contain_tasks: vec![task.id] };
-            groups.push(group);
-            virtual_id += 1;
-        }
-        groups
+        Ok(())
     }
-    // 1.定义虚拟组
-    // 2.给虚拟组拓扑排序
-    // 3.每个虚拟组内部拓扑排序
-    // 4.按照虚拟组的顺序输出任务
-    pub fn sort(&self) -> Vec<T>
+    fn virtualize_group(&self, input: &'i G) -> Result<usize, TopologicalError>
         where
-            T: Clone + Eq + Hash,
-            G: Clone + Eq + Hash,
+            T: PartialEq,
+            G: PartialEq,
+    {
+        match self.group_map.iter().position(|x| *x == input) {
+            Some(index) => Ok(index),
+            None => Err(TopologicalError::MissingGroup)?,
+        }
+    }
+    fn virtualize_dependent_tasks(&self, input: &[&'i T]) -> Result<Vec<usize>, TopologicalError>
+        where
+            T: PartialEq,
+            G: PartialEq,
+    {
+        let mut output = Vec::with_capacity(input.len());
+        for task in input {
+            match self.task_map.iter().position(|x| x == task) {
+                Some(index) => output.push(index),
+                None => Err(TopologicalError::MissingTask)?,
+            }
+        }
+        Ok(output)
+    }
+}
+
+impl<'i, T, G> DependentSort<'i, T, G> {
+    fn virtual_groups(&self) -> HashMap<usize, VirtualTasks>
     {
         todo!()
     }
