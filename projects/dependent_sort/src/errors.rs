@@ -1,8 +1,6 @@
 #[derive(Debug, Copy, Clone)]
-pub enum TopologicalError {
+pub enum TopologicalError<'i, T, G> {
     UnknownError,
-    MissingTask,
-    MissingGroup,
+    MissingTask { task: &'i T },
+    MissingGroup { group: &'i G },
 }
-
-pub type Result<T> = std::result::Result<T, TopologicalError>;

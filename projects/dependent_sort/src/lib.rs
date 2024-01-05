@@ -8,4 +8,4 @@ mod errors;
 mod topological_sort;
 mod dependent_sort;
 
-pub use crate::errors::{TopologicalError, Result};
+pub use crate::errors::{TopologicalError};
