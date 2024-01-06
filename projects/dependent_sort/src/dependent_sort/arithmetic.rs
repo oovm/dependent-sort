@@ -7,8 +7,8 @@ impl<'i, T, G> Clone for Task<'i, T, G> {
 }
 
 impl<'i, T, G> PartialEq for Task<'i, T, G>
-    where
-        T: PartialEq,
+where
+    T: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.id.eq(other.id)
@@ -16,26 +16,37 @@ impl<'i, T, G> PartialEq for Task<'i, T, G>
 }
 
 impl<'i, T, G> PartialOrd for Task<'i, T, G>
-    where
-        T: PartialOrd,
+where
+    T: PartialOrd,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.id.partial_cmp(other.id)
     }
 }
 
-impl<'i, T, G> Eq for Task<'i, T, G> where
-    T: Eq {}
+impl<'i, T, G> Eq for Task<'i, T, G> where T: Eq {}
 
-impl<'i, T, G> Ord for Task<'i, T, G> where
-    T: Ord, {
+impl<'i, T, G> Ord for Task<'i, T, G>
+where
+    T: Ord,
+{
     fn cmp(&self, other: &Self) -> Ordering {
         self.id.cmp(other.id)
     }
 }
 
-impl<'i, T, G> AddAssign<Task<'i, T, G>> for DependentSort<'i, T, G> where T: PartialEq, G: PartialEq {
+impl<'i, T, G> AddAssign<Task<'i, T, G>> for DependentSort<'i, T, G>
+where
+    T: PartialEq,
+    G: PartialEq,
+{
     fn add_assign(&mut self, task: Task<'i, T, G>) {
         self.tasks.push(task)
+    }
+}
+
+impl<'i, T, G> Default for VirtualSort<'i, T, G> {
+    fn default() -> Self {
+        Self { task_map: vec![], group_map: vec![], virtualized_groups: vec![], virtualized_dependent_tasks: vec![] }
     }
 }

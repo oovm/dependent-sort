@@ -4,8 +4,11 @@
 #![doc(html_logo_url = "https://raw.githubusercontent.com/oovm/shape-rs/dev/projects/images/Trapezohedron.svg")]
 #![doc(html_favicon_url = "https://raw.githubusercontent.com/oovm/shape-rs/dev/projects/images/Trapezohedron.svg")]
 
+mod dependent_sort;
 mod errors;
 mod topological_sort;
-mod dependent_sort;
 
-pub use crate::errors::{TopologicalError};
+pub use crate::{
+    dependent_sort::{DependentSort, Task},
+    errors::TopologicalError,
+};
