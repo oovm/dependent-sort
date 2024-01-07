@@ -7,6 +7,7 @@ For example, the instantiation order of parsed types, or the introduction order 
 
 ## Usage
 
+Consider the following task dependencies:
 
 ```mermaid
 flowchart TB
@@ -30,7 +31,10 @@ flowchart TB
     t6 --> t1
 ```
 
+You can use the following code to parse the sequence:
+
 ```rust
+# use dependent_sort::DependentSort;
 #[test]
 fn execution_order() {
     let mut tasks = DependentSort::default();
@@ -53,7 +57,7 @@ fn execution_order() {
 
 Output the following construction sequence, and execute the same group of tasks together:
 
-```rust
+```js
 Task { id: 5, group: Some("A"), dependent_tasks: [] }
 Task { id: 2, group: Some("A"), dependent_tasks: [5] }
 Task { id: 0, group: None, dependent_tasks: [] }

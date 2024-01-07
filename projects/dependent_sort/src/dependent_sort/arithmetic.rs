@@ -45,7 +45,7 @@ where
     }
 }
 
-impl<'i, T, G> Default for VirtualSort<'i, T, G> {
+impl<'i, T, G> Default for FinalizeDependencies<'i, T, G> {
     fn default() -> Self {
         Self { task_map: vec![], group_map: vec![], virtualized_groups: vec![], virtualized_dependent_tasks: vec![] }
     }

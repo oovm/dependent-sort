@@ -1,6 +1,6 @@
 [package]
 name = "dependent_sort"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Aster <192607617@qq.com>"]
 description = "A special topological sorting that can arrange the same group of objects together, used to manage dependencies"
 repository = "https://github.com/oovm/dependent_sort"

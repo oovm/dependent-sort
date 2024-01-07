@@ -1,5 +1,4 @@
 use crate::TopologicalError;
-use itertools::Itertools;
 use std::{
     cmp::Ordering,
     collections::{BTreeMap, VecDeque},
@@ -8,8 +7,10 @@ use std::{
 };
 
 mod arithmetic;
+mod display;
 // mod mermaid;
 
+/// A topological sort of tasks with dependencies.
 #[allow(dead_code)]
 #[derive(Debug, Default)]
 pub struct DependentSort<'i, T, G> {
@@ -18,44 +19,6 @@ pub struct DependentSort<'i, T, G> {
     // virtual_group_id: isize,
     /// Should circular dependencies report an error immediately or declare them at the same time.
     allow_circular: bool,
-}
-
-impl<'i, T: Display, G: Display + Ord> DependentSort<'i, T, G> {
-    pub fn draw_mermaid(&self) -> String {
-        let mut out = String::with_capacity(1024);
-        out.push_str("flowchart TB\n");
-        // define all tasks
-        for task in self.tasks.iter() {
-            // t0["Task 0"]
-            out.push_str(&format!("    t{}[\"Task {}\"]\n", task.id, task.id));
-        }
-        // define all groups
-        let mut groups: BTreeMap<&G, Vec<&Task<T, G>>> = BTreeMap::new();
-        for task in &self.tasks {
-            if let Some(group) = task.group {
-                groups.entry(group).or_default().push(task);
-            }
-        }
-        for (group, tasks) in groups {
-            out.push_str(&format!("    subgraph {}\n", group));
-            for task in tasks {
-                for dep in &task.dependent_tasks {
-                    out.push_str(&format!("        t{} --> t{}\n", dep, task.id));
-                }
-            }
-            out.push_str("    end\n");
-        }
-        // draw lonely tasks
-        for task in self.tasks.iter() {
-            if task.group.is_none() {
-                for dep in &task.dependent_tasks {
-                    out.push_str(&format!("    t{} --> t{}\n", dep, task.id));
-                }
-            }
-        }
-
-        out
-    }
 }
 
 /// A task or type who has dependencies and optionally belongs to a group.
@@ -70,7 +33,7 @@ pub struct Task<'i, T, G> {
 }
 
 #[derive(Debug)]
-struct VirtualSort<'i, T, G> {
+struct FinalizeDependencies<'i, T, G> {
     /// maps for recovering the original tasks
     task_map: Vec<&'i T>,
     /// maps for recovering the original groups
@@ -81,12 +44,15 @@ struct VirtualSort<'i, T, G> {
 }
 
 impl<'i, T, G> Task<'i, T, G> {
+    /// Create a new task without dependencies.
     pub fn new(id: &'i T) -> Self {
         Self { id, group: None, dependent_tasks: vec![] }
     }
+    /// Create a new task with given dependencies.
     pub fn new_with_dependent(id: &'i T, dependent_tasks: Vec<&'i T>) -> Self {
         Self { id, group: None, dependent_tasks }
     }
+    /// Set the group to which the task belongs.
     pub fn with_group(self, group: &'i G) -> Self {
         Self { group: Some(group), ..self }
     }
@@ -97,11 +63,9 @@ where
     T: PartialEq,
     G: PartialEq,
 {
-    fn finalize(&mut self) -> Result<VirtualSort<'i, T, G>, TopologicalError<'i, T, G>> {
-        let mut sorter = VirtualSort::default();
-        let tasks = self.tasks.iter().cloned().collect_vec();
-        // push all task to task map
-        for task in tasks.clone() {
+    fn finalize(&self) -> Result<FinalizeDependencies<'i, T, G>, TopologicalError<'i, T, G>> {
+        let mut sorter = FinalizeDependencies::default();
+        for task in &self.tasks {
             sorter.task_map.push(task.id);
             if let Some(group) = task.group {
                 if !sorter.group_map.contains(&group) {
@@ -109,11 +73,12 @@ where
                 }
             }
         }
-        for task in tasks {
+        for task in &self.tasks {
             sorter.virtualize(task)?;
         }
         Ok(sorter)
     }
+    /// Sort the tasks and return the sorted tasks.
     pub fn sort(&mut self) -> Result<Vec<Task<'i, T, G>>, TopologicalError<'i, T, G>> {
         let sorter = self.finalize()?;
         let sorted = double_topological_sort(
@@ -125,12 +90,12 @@ where
     }
 }
 
-impl<'i, T, G> VirtualSort<'i, T, G>
+impl<'i, T, G> FinalizeDependencies<'i, T, G>
 where
     T: PartialEq,
     G: PartialEq,
 {
-    fn virtualize(&mut self, task: Task<'i, T, G>) -> Result<(), TopologicalError<'i, T, G>> {
+    fn virtualize(&mut self, task: &Task<'i, T, G>) -> Result<(), TopologicalError<'i, T, G>> {
         let dependent_tasks = self.virtualize_dependent_tasks(&task.dependent_tasks)?;
         let group_id = match task.group {
             Some(reals) => self.virtualize_group(reals)? as isize,
@@ -211,10 +176,10 @@ fn topological_sort(adj: Vec<Vec<usize>>, mut indeg: Vec<u32>) -> Vec<usize> {
     let mut ret = Vec::new();
     while let Some(node) = q.pop_front() {
         ret.push(node);
-        for &nnode in adj[node].iter() {
-            indeg[nnode] -= 1;
-            if indeg[nnode] == 0 {
-                q.push_back(nnode)
+        for &new_node in adj[node].iter() {
+            indeg[new_node] -= 1;
+            if indeg[new_node] == 0 {
+                q.push_back(new_node)
             }
         }
     }
