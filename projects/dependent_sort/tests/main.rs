@@ -17,6 +17,9 @@ fn execution_order() {
     tasks += Task::new_with_dependent(&6, vec![]).with_group(&"B");
     tasks += Task::new(&7);
     println!("{}", tasks.draw_mermaid());
+    for task in &tasks.sort_grouped().unwrap() {
+        println!("{:?}", task);
+    }
     let sorted = tasks.sort().unwrap();
     for task in &sorted {
         println!("{:?}", task);

@@ -34,7 +34,6 @@ impl<'i, T: Display, G: Display + Ord> DependentSort<'i, T, G> {
                 }
             }
         }
-
         out
     }
 }

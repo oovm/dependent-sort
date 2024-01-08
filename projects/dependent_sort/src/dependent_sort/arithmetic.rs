@@ -1,5 +1,11 @@
 use super::*;
 
+impl<'i, T, G> Default for DependentSort<'i, T, G> {
+    fn default() -> Self {
+        Self { tasks: vec![], allow_circular: false }
+    }
+}
+
 impl<'i, T, G> Clone for Task<'i, T, G> {
     fn clone(&self) -> Self {
         Self { id: self.id, group: self.group, dependent_tasks: self.dependent_tasks.clone() }

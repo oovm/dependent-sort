@@ -1,8 +1,9 @@
 use crate::TopologicalError;
 use std::{
     cmp::Ordering,
-    collections::{BTreeMap, VecDeque},
+    collections::{BTreeMap, HashMap, VecDeque},
     fmt::{Debug, Display},
+    hash::Hash,
     ops::AddAssign,
 };
 
@@ -12,7 +13,7 @@ mod display;
 
 /// A topological sort of tasks with dependencies.
 #[allow(dead_code)]
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct DependentSort<'i, T, G> {
     /// non-virtualized tasks
     tasks: Vec<Task<'i, T, G>>,
@@ -30,6 +31,15 @@ pub struct Task<'i, T, G> {
     pub group: Option<&'i G>,
     /// The tasks that this task depends on.
     pub dependent_tasks: Vec<&'i T>,
+}
+
+/// A group of tasks, if task is not in a group, it will be in a group of its own.
+#[derive(Debug)]
+pub struct Group<'i, T, G> {
+    /// The unique identifier of the group.
+    pub id: Option<&'i G>,
+    /// The tasks that this group contains.
+    pub tasks: Vec<&'i T>,
 }
 
 #[derive(Debug)]
@@ -87,6 +97,58 @@ where
             sorter.virtualized_dependent_tasks.clone(),
         );
         Ok(sorted.into_iter().map(|i| self.tasks[i as usize].clone()).collect())
+    }
+    /// Sort the tasks and return the sorted tasks grouped by their group.
+    pub fn sort_grouped(&mut self) -> Result<Vec<Group<'i, T, G>>, TopologicalError<'i, T, G>>
+    where
+        G: PartialEq,
+    {
+        let sorted = self.sort()?;
+        let mut group_index_map: Vec<(&G, usize)> = vec![];
+        let mut grouped: Vec<Group<T, G>> = vec![];
+        'outer: for task in sorted {
+            match task.group {
+                Some(s) => {
+                    for (key, position) in group_index_map.iter().map(|(k, v)| (*k, *v)) {
+                        // group has been defined
+                        if key == s {
+                            grouped[position].tasks.push(task.id);
+                            continue 'outer;
+                        }
+                    }
+                    // first appearance of group
+                    group_index_map.push((s, grouped.len()));
+                    grouped.push(Group { id: Some(s), tasks: vec![task.id] })
+                }
+                None => grouped.push(Group { id: None, tasks: vec![task.id] }),
+            }
+        }
+        Ok(grouped)
+    }
+    /// Sort the tasks and return the sorted tasks grouped by their group.
+    pub fn sort_grouped_hash_specialization(&mut self) -> Result<Vec<Group<'i, T, G>>, TopologicalError<'i, T, G>>
+    where
+        G: Eq + Hash,
+    {
+        let sorted = self.sort()?;
+        let mut group_index_map: HashMap<&G, usize> = HashMap::new();
+        let mut grouped: Vec<Group<T, G>> = vec![];
+        for task in sorted {
+            match task.group {
+                Some(s) => match group_index_map.get(s) {
+                    Some(position) => {
+                        grouped[*position].tasks.push(task.id);
+                    }
+                    None => {
+                        let position = grouped.len();
+                        group_index_map.insert(s, position);
+                        grouped.push(Group { id: Some(s), tasks: vec![task.id] })
+                    }
+                },
+                None => grouped.push(Group { id: None, tasks: vec![task.id] }),
+            }
+        }
+        Ok(grouped)
     }
 }
 
